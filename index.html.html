@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Agendar Horário</title><style>
+:root{--card:#171717;--text:#fff7e8;--muted:#b8ae9f;--gold:#c99a4a;--line:#333;--ok:#39b26f;--okbg:#123422;--warn:#f2b742;--warnbg:#392d10;--danger:#e05a47;--dangerbg:#3b1713}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,#060606,#181818);color:var(--text)}
+header{padding:22px 16px;background:#060606;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}header h1{margin:0;font-size:22px}header p{margin:6px 0 0;color:var(--muted);font-size:14px}
+main{padding:14px;max-width:980px;margin:auto}.card{background:rgba(23,23,23,.96);border:1px solid var(--line);border-radius:18px;padding:15px;margin-bottom:13px;box-shadow:0 10px 24px rgba(0,0,0,.22)}
+h2{margin:0 0 12px;font-size:20px}h3{margin:0 0 6px;font-size:17px}label{display:block;margin:12px 0 6px;color:var(--muted);font-size:13px;font-weight:bold}
+input,select,textarea{width:100%;padding:13px;border-radius:12px;border:1px solid #3a3a3a;background:#0e0e0e;color:var(--text);font-size:15px}textarea{min-height:70px;resize:vertical}
+button{border:0;border-radius:13px;padding:12px 14px;min-height:45px;font-weight:bold;cursor:pointer}.primary{background:var(--gold);color:#111;width:100%;margin-top:14px}.secondary{background:#232323;color:var(--text)}.ok{background:var(--ok);color:#06180e}.warn{background:var(--warn);color:#1d1300}.danger{background:var(--danger);color:#fff}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}.tab{background:var(--card);border:1px solid var(--line);color:var(--text);border-radius:14px;padding:12px;font-weight:bold}.tab.active{background:var(--gold);color:#111}
+section{display:none}section.active{display:block}.hours{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}.hour{border:1px solid var(--line);background:#111;color:var(--text);border-radius:12px;padding:12px 8px;text-align:center}.hour.free{cursor:pointer}.hour.free:hover,.hour.selected{background:var(--gold);color:#111;border-color:var(--gold)}.hour.busy{opacity:.45;text-decoration:line-through;background:#252525;cursor:not-allowed}
+.alert{display:none;padding:14px;border-radius:16px;margin-bottom:14px}.success{background:var(--okbg);border:1px solid var(--ok);color:#eafff2}.error{background:var(--dangerbg);border:1px solid var(--danger);color:#ffe9e6}.empty{text-align:center;color:var(--muted);padding:18px;border:1px dashed #444;border-radius:16px}.tiny{color:var(--muted);font-size:12px;line-height:1.4;margin-top:10px}
+.item{border:1px solid var(--line);background:#141414;border-radius:17px;padding:14px;margin:10px 0}.item.atendido{background:var(--okbg);border-color:var(--ok)}.item.faltou{background:var(--warnbg);border-color:var(--warn)}.item.cancelado{background:var(--dangerbg);border-color:var(--danger)}.meta{color:var(--muted);font-size:13px;line-height:1.5}.item.atendido .meta,.item.faltou .meta,.item.cancelado .meta{color:#f5ead8}
+.badge{display:inline-block;background:#333;border-radius:999px;padding:4px 9px;font-size:12px;font-weight:bold;margin-top:6px}.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:11px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{background:#141414;border:1px solid var(--line);border-radius:16px;padding:14px}.stat strong{display:block;color:var(--gold);font-size:22px;margin-top:5px}.topbar{display:flex;gap:8px;align-items:center;justify-content:space-between}.topbar button{min-width:120px}
+@media(max-width:720px){.row,.stats{grid-template-columns:1fr}.hours{grid-template-columns:repeat(3,1fr)}.actions{grid-template-columns:1fr}.tabs{grid-template-columns:1fr 1fr}header h1{font-size:20px}.topbar{display:block}.topbar button{width:100%;margin-top:8px}}
+</style></head>
+<body>
+<header><h1>Agendar horário</h1><p>Escolha um horário disponível e confirme seu agendamento.</p></header>
+<main>
+<div id="ok" class="alert success"></div><div id="erro" class="alert error"></div>
+<div class="card">
+<h2>Seu agendamento</h2>
+<div class="row"><div><label>Nome</label><input id="nome" placeholder="Seu nome"></div><div><label>WhatsApp</label><input id="whatsapp" placeholder="(99) 99999-9999"></div></div>
+<div class="row"><div><label>Serviço</label><select id="servico"></select></div><div><label>Barbeiro</label><select id="barbeiro"></select></div></div>
+<label>Data</label><input id="data" type="date">
+<label>Horários disponíveis</label><div id="horarios" class="hours"></div>
+<label>Observação</label><textarea id="obs" placeholder="Ex.: preferência de corte"></textarea>
+<button class="primary" id="confirmar">Confirmar agendamento</button>
+<p class="tiny">Horários riscados já estão ocupados.</p>
+</div>
+</main>
+<script>
+
+const API="https://script.google.com/macros/s/AKfycbw-QcgqR3bC2MnBH9dA0wLE1ajI4kOcNuSBHuUL2EcB2519yBk5cTVtZlCBMd5szG7j/exec";
+function jsonp(acao){
+ return new Promise((resolve,reject)=>{
+  const cb="cb_"+Date.now()+"_"+Math.random().toString(36).slice(2);
+  const s=document.createElement("script");
+  window[cb]=(dados)=>{delete window[cb];s.remove();resolve(dados)};
+  s.onerror=()=>{delete window[cb];s.remove();reject(new Error("erro_jsonp"))};
+  s.src=API+"?acao="+encodeURIComponent(acao)+"&callback="+cb;
+  document.body.appendChild(s);
+ });
+}
+
+const HORARIOS=["08:00","08:30","09:00","09:30","10:00","10:30","11:00","11:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30","18:00"];
+let ag=[], barbeiros=[], servicos=[];
+function hoje(){return new Date().toISOString().slice(0,10)} function brl(v){return Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})} function esc(t){return String(t??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
+function campo(o,n){return o[n]??o[n.normalize("NFD").replace(/[\u0300-\u036f]/g,"")]??""} function status(a){return String(campo(a,"Status")||"Agendado").toLowerCase().trim()} function ocupa(a){let s=status(a);return s!=="cancelado"&&s!=="faltou"}
+function msg(id,t){document.getElementById(id).innerHTML=t;document.getElementById(id).style.display="block";scrollTo({top:0,behavior:"smooth"})} function limparMsgs(){ok.style.display="none";erro.style.display="none"}
+async function carregar(){
+ try{
+  [ag,barbeiros,servicos]=await Promise.all([jsonp("listar"),jsonp("barbeiros"),jsonp("servicos")]);
+  if(!barbeiros.length)barbeiros=["Barbeiro 1"]; if(!servicos.length)servicos=[{servico:"Corte",valor:35,duracao:30}];
+  barbeiro.innerHTML=barbeiros.map(b=>`<option>${esc(b)}</option>`).join("");
+  servico.innerHTML=servicos.map((s,i)=>`<option value="${i}">${esc(s.servico)} — ${brl(s.valor)}</option>`).join("");
+  renderHorarios();
+ }catch(e){msg("erro","Não consegui carregar os horários. Veja se você substituiu o Apps Script e implantou uma nova versão.")}
+}
+function renderHorarios(){
+ const dia=data.value, barb=barbeiro.value;
+ if(!dia||!barb){horarios.innerHTML='<div class="empty">Escolha data e barbeiro.</div>';return}
+ horarios.innerHTML=HORARIOS.map(h=>{
+  const ocupado=ag.some(a=>String(campo(a,"Data")).slice(0,10)===dia && String(campo(a,"Horário")||campo(a,"Horario"))===h && String(campo(a,"Barbeiro"))===barb && ocupa(a));
+  return `<button class="hour ${ocupado?"busy":"free"}" data-hora="${h}" ${ocupado?"disabled":""}>${h}</button>`;
+ }).join("");
+}
+async function agendar(){
+ limparMsgs();
+ const s=servicos[Number(servico.value)], btn=document.querySelector(".hour.selected");
+ if(!nome.value.trim()||!whatsapp.value.trim()||!s||!barbeiro.value||!data.value||!btn){msg("erro","Preencha tudo e escolha um horário.");return}
+ const payload={data:data.value,horario:btn.dataset.hora,cliente:nome.value.trim(),whatsapp:whatsapp.value.trim(),servico:s.servico,barbeiro:barbeiro.value,valor:s.valor,observacao:obs.value.trim()};
+ try{
+  confirmar.disabled=true;
+  await fetch(API,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});
+  msg("ok",`<strong>Agendamento enviado!</strong><br>${esc(payload.cliente)}, seu horário ficou para ${esc(payload.data.split("-").reverse().join("/"))} às ${esc(payload.horario)}.`);
+  nome.value="";whatsapp.value="";obs.value="";setTimeout(carregar,1200);
+ }catch(e){msg("erro","Não consegui enviar. Tente novamente.")}finally{confirmar.disabled=false}
+}
+document.addEventListener("click",e=>{if(e.target.matches(".hour.free")){document.querySelectorAll(".hour").forEach(b=>b.classList.remove("selected"));e.target.classList.add("selected")} if(e.target.id==="confirmar")agendar()});
+["data","barbeiro"].forEach(i=>document.getElementById(i).addEventListener("change",renderHorarios)); data.value=hoje(); carregar();
+</script></body></html>
