@@ -1,4 +1,13 @@
-<!DOCTYPE html><html lang="pt-BR"><head><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Agendar Horário</title><style>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agendar Horário</title>
+<style>
 :root{--card:#171717;--text:#fff7e8;--muted:#b8ae9f;--gold:#c99a4a;--line:#333;--ok:#39b26f;--okbg:#123422;--warn:#f2b742;--warnbg:#392d10;--danger:#e05a47;--dangerbg:#3b1713}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,#060606,#181818);color:var(--text);overflow-x:hidden}
 header{padding:22px 16px;background:#060606;border-bottom:1px solid var(--line)}header h1{margin:0;font-size:22px}header p{margin:6px 0 0;color:var(--muted);font-size:14px}
@@ -18,13 +27,59 @@ section{display:none}section.active{display:block}.hours{display:grid;grid-templ
 .actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:11px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{background:#141414;border:1px solid var(--line);border-radius:16px;padding:14px}.stat strong{display:block;color:var(--gold);font-size:22px;margin-top:5px}
 .topbar{display:flex;gap:8px;align-items:center;justify-content:space-between}.topbar button{min-width:120px}
 @media(max-width:720px){.row,.stats{grid-template-columns:1fr}.hours{grid-template-columns:repeat(2,1fr)}.actions{grid-template-columns:1fr}.tabs{grid-template-columns:1fr}header h1{font-size:20px}.topbar{display:block}.topbar button{width:100%;margin-top:8px}}
-</style></head><body>
-<header><h1>Agendar horário</h1><p>Escolha um horário disponível e confirme seu agendamento.</p></header>
-<main><div id="ok" class="alert success"></div><div id="erro" class="alert error"></div><div class="card"><h2>Seu agendamento</h2>
-<div class="row"><div><label>Nome</label><input id="nome" placeholder="Seu nome"></div><div><label>WhatsApp</label><input id="whatsapp" placeholder="(99) 99999-9999"></div></div>
-<div class="row"><div><label>Serviço</label><select id="servico"></select></div><div><label>Barbeiro</label><select id="barbeiro"></select></div></div>
-<label>Data</label><input id="data" type="date"><label>Horários disponíveis</label><div id="horarios" class="hours"><div class="empty">Carregando horários...</div></div>
-<label>Observação</label><textarea id="obs" placeholder="Ex.: preferência de corte"></textarea><button class="primary" id="confirmar" disabled>Escolha um horário</button><p class="tiny">Horários cinza estão ocupados, bloqueados ou não têm tempo suficiente para o serviço escolhido.</p></div></main>
+</style>
+</head>
+<body>
+<header>
+  <h1>Agendar horário</h1>
+  <p>Escolha um horário disponível e confirme seu agendamento.</p>
+</header>
+
+<main>
+  <div id="ok" class="alert success"></div>
+  <div id="erro" class="alert error"></div>
+
+  <div class="card">
+    <h2>Seu agendamento</h2>
+
+    <div class="row">
+      <div>
+        <label>Nome</label>
+        <input id="nome" placeholder="Seu nome">
+      </div>
+      <div>
+        <label>WhatsApp</label>
+        <input id="whatsapp" placeholder="(99) 99999-9999">
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Serviço</label>
+        <select id="servico"></select>
+      </div>
+      <div>
+        <label>Barbeiro</label>
+        <select id="barbeiro"></select>
+      </div>
+    </div>
+
+    <label>Data</label>
+    <input id="data" type="date">
+
+    <label>Horários disponíveis</label>
+    <div id="horarios" class="hours">
+      <div class="empty">Carregando horários...</div>
+    </div>
+
+    <label>Observação</label>
+    <textarea id="obs" placeholder="Ex.: preferência de corte"></textarea>
+
+    <button class="primary" id="confirmar" disabled>Escolha um horário</button>
+    <p class="tiny">Os horários são calculados conforme a duração do serviço. Ex.: se termina 09:50, 09:50 pode aparecer livre.</p>
+  </div>
+</main>
+
 <script>
 window.addEventListener("error", function(e){
   var box = document.getElementById("erro");
@@ -32,31 +87,337 @@ window.addEventListener("error", function(e){
   console.error(e.message);
 });
 
-const API = "https://script.google.com/macros/s/AKfycbx30zQOvtSs8hAK7nUEcYanCHgMKwrPf3s1GfauJNgg14coKCgV4YQ01v_ICJlXLwI/exec";
-function hoje(){return new Date().toISOString().slice(0,10)}
-function brl(v){return Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
-function esc(t){return String(t == null ? "" : t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;")}
-function normalizaTexto(txt){return String(txt||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim()}
-function campo(obj,nome){if(!obj)return "";const alvo=normalizaTexto(nome);for(const chave in obj){if(normalizaTexto(chave)===alvo)return obj[chave]}return ""}
-function normalizarData(valor){if(!valor)return "";let v=String(valor).trim();if(/^\d{4}-\d{2}-\d{2}/.test(v))return v.slice(0,10);if(/^\d{2}\/\d{2}\/\d{4}/.test(v)){const [d,m,a]=v.slice(0,10).split("/");return `${a}-${m}-${d}`}const t=new Date(v);if(!isNaN(t.getTime()))return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`;return v}
-function normalizarHorario(valor){if(!valor)return "";let v=String(valor).trim();if(/^\d{2}:\d{2}/.test(v))return v.slice(0,5);if(/^\d{1}:\d{2}/.test(v))return "0"+v.slice(0,4);const t=new Date(v);if(!isNaN(t.getTime()))return String(t.getHours()).padStart(2,"0")+":"+String(t.getMinutes()).padStart(2,"0");return v}
-function min(h){const p=normalizarHorario(h).split(":").map(Number);return p[0]*60+p[1]}
-function sobrepoe(inicioA,fimA,inicioB,fimB){return inicioA < fimB && fimA > inicioB}
-function jsonp(acao){return new Promise((resolve,reject)=>{const cb="cb_"+Date.now()+"_"+Math.random().toString(36).slice(2);const s=document.createElement("script");window[cb]=(dados)=>{delete window[cb];s.remove();resolve(dados)};s.onerror=()=>{delete window[cb];s.remove();reject(new Error("Erro"))};s.src=API+"?acao="+encodeURIComponent(acao)+"&callback="+cb+"&t="+Date.now();document.body.appendChild(s)})}
-async function post(payload){await fetch(API,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)})}
+const API = "https://script.google.com/macros/s/AKfycbx-FnB_IfsuTBGk2wlLPEzqCM4NqXcLUldLgBYCx-Bc0d03SohgtuttQbku_IAO1G_J/exec";
+const HORA_INICIO = "08:00";
+const HORA_FIM = "18:00";
+const PASSO_MINUTOS = 10;
 
-const HORARIOS=["08:00","08:30","09:00","09:30","10:00","10:30","11:00","11:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30","18:00"];
-let ag=[],barbeiros=[],servicos=[],bloqueios=[];
-function msg(id,texto){const el=document.getElementById(id);el.innerHTML=texto;el.style.display="block";scrollTo({top:0,behavior:"smooth"})}function limparMsgs(){ok.style.display="none";erro.style.display="none"}
-function mapAg(a){return {data:normalizarData(campo(a,"Data")),horario:normalizarHorario(campo(a,"Horário")||campo(a,"Horario")),barbeiro:campo(a,"Barbeiro"),status:String(campo(a,"Status")||"Agendado").trim(),duracao:Number(campo(a,"Duração")||campo(a,"Duracao")||30)}}
-function mapBloq(b){return {data:normalizarData(campo(b,"Data")),barbeiro:campo(b,"Barbeiro")||"Todos",inicio:normalizarHorario(campo(b,"Início")||campo(b,"Inicio")||"00:00"),fim:normalizarHorario(campo(b,"Fim")||"23:59"),motivo:campo(b,"Motivo")||"Horário bloqueado"}}
-function ocupa(a){const s=normalizaTexto(a.status);return s!=="cancelado"&&s!=="faltou"}
-function bloqueioSobrepoe(dia,barb,inicio,fim){return bloqueios.find(b=>b.data===dia&&(normalizaTexto(b.barbeiro)==="todos"||b.barbeiro===barb)&&sobrepoe(inicio,fim,min(b.inicio),min(b.fim)))}
-function agendamentoSobrepoe(dia,barb,inicio,fim){return ag.find(a=>a.data===dia&&a.barbeiro===barb&&ocupa(a)&&sobrepoe(inicio,fim,min(a.horario),min(a.horario)+Number(a.duracao||30)))}
-function liberarBotao(liberado){confirmar.disabled=!liberado;confirmar.textContent=liberado?"Confirmar agendamento":"Escolha um horário"}
-async function carregar(){liberarBotao(false);horarios.innerHTML='<div class="empty">Carregando horários...</div>';try{const dados=await Promise.all([jsonp("listar"),jsonp("barbeiros"),jsonp("servicos"),jsonp("bloqueios")]);ag=(dados[0]||[]).filter(a=>campo(a,"Cliente")).map(mapAg);barbeiros=dados[1]||[];servicos=dados[2]||[];bloqueios=(dados[3]||[]).map(mapBloq);if(!barbeiros.length)barbeiros=["Barbeiro 1"];if(!servicos.length)servicos=[{servico:"Corte",valor:35,duracao:30}];barbeiro.innerHTML=barbeiros.map(b=>`<option>${esc(b)}</option>`).join("");servico.innerHTML=servicos.map((s,i)=>`<option value="${i}">${esc(s.servico)} — ${brl(s.valor)} — ${s.duracao||30}min</option>`).join("");renderHorarios();}catch(e){horarios.innerHTML='<div class="empty">Não consegui carregar os horários.<br>Atualize a página ou limpe o cache do navegador.</div>'; console.error(e)}}
-function renderHorarios(){liberarBotao(false);document.querySelectorAll(".hour").forEach(b=>b.classList.remove("selected"));const dia=data.value,barb=barbeiro.value,s=servicos[Number(servico.value)]||{duracao:30};if(!dia||!barb){horarios.innerHTML='<div class="empty">Escolha data e barbeiro.</div>';return}horarios.innerHTML=HORARIOS.map(h=>{const ini=min(h),fim=ini+Number(s.duracao||30);const agOcupado=agendamentoSobrepoe(dia,barb,ini,fim);const bloq=bloqueioSobrepoe(dia,barb,ini,fim);const ocupado=agOcupado||bloq;const titulo=bloq?`title="${esc(bloq.motivo)}"`:"";return `<button type="button" class="hour ${ocupado?"busy":"free"}" data-hora="${h}" ${ocupado?"disabled":""} ${titulo}>${h}</button>`}).join("")}
-async function agendar(){limparMsgs();const s=servicos[Number(servico.value)],btn=document.querySelector(".hour.selected");if(!nome.value.trim()||!whatsapp.value.trim()||!s||!barbeiro.value||!data.value||!btn){msg("erro","Preencha tudo e escolha um horário disponível.");liberarBotao(false);return}const ini=min(btn.dataset.hora),fim=ini+Number(s.duracao||30);if(agendamentoSobrepoe(data.value,barbeiro.value,ini,fim)||bloqueioSobrepoe(data.value,barbeiro.value,ini,fim)){msg("erro","Esse horário não está mais disponível.");renderHorarios();return}const payload={data:data.value,horario:btn.dataset.hora,cliente:nome.value.trim(),whatsapp:whatsapp.value.trim(),servico:s.servico,barbeiro:barbeiro.value,valor:s.valor,duracao:s.duracao||30,observacao:obs.value.trim()};try{confirmar.disabled=true;confirmar.textContent="Enviando...";await post(payload);msg("ok",`<strong>Agendamento enviado!</strong><br>${esc(payload.cliente)}, seu horário ficou para ${esc(payload.data.split("-").reverse().join("/"))} às ${esc(payload.horario)}.`);nome.value="";whatsapp.value="";obs.value="";setTimeout(carregar,1200)}catch(e){msg("erro","Não consegui enviar.")}finally{liberarBotao(false)}}
-document.addEventListener("click",e=>{if(e.target.matches(".hour.free")){document.querySelectorAll(".hour").forEach(b=>b.classList.remove("selected"));e.target.classList.add("selected");liberarBotao(true)}if(e.target.id==="confirmar")agendar()});
-["data","barbeiro","servico"].forEach(id=>document.getElementById(id).addEventListener("change",renderHorarios));data.value=hoje();carregar();
-</script></body></html>
+let ag = [];
+let barbeiros = [];
+let servicos = [];
+let bloqueios = [];
+
+function hoje() {
+  return new Date().toISOString().slice(0,10);
+}
+
+function brl(v) {
+  return Number(v || 0).toLocaleString("pt-BR", {style:"currency", currency:"BRL"});
+}
+
+function esc(t) {
+  return String(t == null ? "" : t)
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+}
+
+function normalizaTexto(txt) {
+  return String(txt || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g,"")
+    .toLowerCase()
+    .trim();
+}
+
+function campo(obj, nome) {
+  if (!obj) return "";
+  var alvo = normalizaTexto(nome);
+  for (var chave in obj) {
+    if (normalizaTexto(chave) === alvo) return obj[chave];
+  }
+  return "";
+}
+
+function normalizarData(valor) {
+  if (!valor) return "";
+  var v = String(valor).trim();
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0,10);
+
+  if (/^\d{2}\/\d{2}\/\d{4}/.test(v)) {
+    var partes = v.slice(0,10).split("/");
+    return partes[2] + "-" + partes[1] + "-" + partes[0];
+  }
+
+  var t = new Date(v);
+  if (!isNaN(t.getTime())) {
+    return t.getFullYear() + "-" + String(t.getMonth()+1).padStart(2,"0") + "-" + String(t.getDate()).padStart(2,"0");
+  }
+
+  return v;
+}
+
+function normalizarHorario(valor) {
+  if (!valor) return "";
+  var v = String(valor).trim();
+
+  if (/^\d{2}:\d{2}/.test(v)) return v.slice(0,5);
+  if (/^\d{1}:\d{2}/.test(v)) return "0" + v.slice(0,4);
+
+  var t = new Date(v);
+  if (!isNaN(t.getTime())) {
+    return String(t.getHours()).padStart(2,"0") + ":" + String(t.getMinutes()).padStart(2,"0");
+  }
+
+  return v;
+}
+
+function min(h) {
+  var p = normalizarHorario(h).split(":").map(Number);
+  return p[0] * 60 + p[1];
+}
+
+function hhmm(total) {
+  return String(Math.floor(total / 60)).padStart(2,"0") + ":" + String(total % 60).padStart(2,"0");
+}
+
+function sobrepoe(inicioA, fimA, inicioB, fimB) {
+  return inicioA < fimB && fimA > inicioB;
+}
+
+function gerarHorariosDinamicos() {
+  var lista = [];
+  for (var t = min(HORA_INICIO); t < min(HORA_FIM); t += PASSO_MINUTOS) {
+    lista.push(hhmm(t));
+  }
+  return lista;
+}
+
+function jsonp(acao) {
+  return new Promise(function(resolve, reject) {
+    var cb = "cb_" + Date.now() + "_" + Math.random().toString(36).slice(2);
+    var s = document.createElement("script");
+
+    window[cb] = function(dados) {
+      delete window[cb];
+      s.remove();
+      resolve(dados);
+    };
+
+    s.onerror = function() {
+      delete window[cb];
+      s.remove();
+      reject(new Error("Erro"));
+    };
+
+    s.src = API + "?acao=" + encodeURIComponent(acao) + "&callback=" + cb + "&t=" + Date.now();
+    document.body.appendChild(s);
+  });
+}
+
+async function post(payload) {
+  await fetch(API, {
+    method: "POST",
+    mode: "no-cors",
+    headers: {"Content-Type":"text/plain;charset=utf-8"},
+    body: JSON.stringify(payload)
+  });
+}
+
+function msg(id, texto) {
+  var el = document.getElementById(id);
+  el.innerHTML = texto;
+  el.style.display = "block";
+  scrollTo({top:0, behavior:"smooth"});
+}
+
+function limparMsgs() {
+  ok.style.display = "none";
+  erro.style.display = "none";
+}
+
+function mapAg(a) {
+  return {
+    data: normalizarData(campo(a,"Data")),
+    horario: normalizarHorario(campo(a,"Horário") || campo(a,"Horario")),
+    barbeiro: campo(a,"Barbeiro"),
+    status: String(campo(a,"Status") || "Agendado").trim(),
+    duracao: Number(campo(a,"Duração") || campo(a,"Duracao") || 30)
+  };
+}
+
+function mapBloq(b) {
+  return {
+    data: normalizarData(campo(b,"Data")),
+    barbeiro: campo(b,"Barbeiro") || "Todos",
+    inicio: normalizarHorario(campo(b,"Início") || campo(b,"Inicio") || "00:00"),
+    fim: normalizarHorario(campo(b,"Fim") || "23:59"),
+    motivo: campo(b,"Motivo") || "Horário bloqueado"
+  };
+}
+
+function ocupa(a) {
+  var s = normalizaTexto(a.status);
+  return s !== "cancelado" && s !== "faltou";
+}
+
+function bloqueioSobrepoe(dia, barb, inicio, fim) {
+  return bloqueios.find(function(b) {
+    return b.data === dia &&
+      (normalizaTexto(b.barbeiro) === "todos" || b.barbeiro === barb) &&
+      sobrepoe(inicio, fim, min(b.inicio), min(b.fim));
+  });
+}
+
+function agendamentoSobrepoe(dia, barb, inicio, fim) {
+  return ag.find(function(a) {
+    return a.data === dia &&
+      a.barbeiro === barb &&
+      ocupa(a) &&
+      sobrepoe(inicio, fim, min(a.horario), min(a.horario) + Number(a.duracao || 30));
+  });
+}
+
+function liberarBotao(liberado) {
+  confirmar.disabled = !liberado;
+  confirmar.textContent = liberado ? "Confirmar agendamento" : "Escolha um horário";
+}
+
+async function carregar() {
+  liberarBotao(false);
+  horarios.innerHTML = '<div class="empty">Carregando horários...</div>';
+
+  try {
+    var dados = await Promise.all([
+      jsonp("listar"),
+      jsonp("barbeiros"),
+      jsonp("servicos"),
+      jsonp("bloqueios")
+    ]);
+
+    ag = (dados[0] || []).filter(function(a) { return campo(a,"Cliente"); }).map(mapAg);
+    barbeiros = dados[1] || [];
+    servicos = dados[2] || [];
+    bloqueios = (dados[3] || []).map(mapBloq);
+
+    if (!barbeiros.length) barbeiros = ["Barbeiro 1"];
+    if (!servicos.length) servicos = [{servico:"Corte", valor:35, duracao:30}];
+
+    barbeiro.innerHTML = barbeiros.map(function(b) {
+      return '<option>' + esc(b) + '</option>';
+    }).join("");
+
+    servico.innerHTML = servicos.map(function(s,i) {
+      return '<option value="' + i + '">' + esc(s.servico) + ' — ' + brl(s.valor) + ' — ' + (s.duracao || 30) + 'min</option>';
+    }).join("");
+
+    renderHorarios();
+  } catch(e) {
+    horarios.innerHTML = '<div class="empty">Não consegui carregar os horários.<br>Atualize a página ou limpe o cache do navegador.</div>';
+    console.error(e);
+  }
+}
+
+function renderHorarios() {
+  liberarBotao(false);
+  document.querySelectorAll(".hour").forEach(function(b) { b.classList.remove("selected"); });
+
+  var dia = data.value;
+  var barb = barbeiro.value;
+  var s = servicos[Number(servico.value)] || {duracao:30};
+
+  if (!dia || !barb) {
+    horarios.innerHTML = '<div class="empty">Escolha data e barbeiro.</div>';
+    return;
+  }
+
+  var duracao = Number(s.duracao || 30);
+  var fimExpediente = min(HORA_FIM);
+  var disponiveis = [];
+
+  gerarHorariosDinamicos().forEach(function(h) {
+    var ini = min(h);
+    var fim = ini + duracao;
+
+    if (fim > fimExpediente) return;
+
+    var agOcupado = agendamentoSobrepoe(dia, barb, ini, fim);
+    var bloq = bloqueioSobrepoe(dia, barb, ini, fim);
+
+    if (!agOcupado && !bloq) disponiveis.push(h);
+  });
+
+  if (!disponiveis.length) {
+    horarios.innerHTML = '<div class="empty">Nenhum horário disponível para esse serviço.</div>';
+    return;
+  }
+
+  horarios.innerHTML = disponiveis.map(function(h) {
+    return '<button type="button" class="hour free" data-hora="' + h + '">' + h + '</button>';
+  }).join("");
+}
+
+async function agendar() {
+  limparMsgs();
+
+  var s = servicos[Number(servico.value)];
+  var btn = document.querySelector(".hour.selected");
+
+  if (!nome.value.trim() || !whatsapp.value.trim() || !s || !barbeiro.value || !data.value || !btn) {
+    msg("erro", "Preencha tudo e escolha um horário disponível.");
+    liberarBotao(false);
+    return;
+  }
+
+  var ini = min(btn.dataset.hora);
+  var fim = ini + Number(s.duracao || 30);
+
+  if (agendamentoSobrepoe(data.value, barbeiro.value, ini, fim) || bloqueioSobrepoe(data.value, barbeiro.value, ini, fim)) {
+    msg("erro", "Esse horário não está mais disponível.");
+    renderHorarios();
+    return;
+  }
+
+  var payload = {
+    data: data.value,
+    horario: btn.dataset.hora,
+    cliente: nome.value.trim(),
+    whatsapp: whatsapp.value.trim(),
+    servico: s.servico,
+    barbeiro: barbeiro.value,
+    valor: s.valor,
+    duracao: s.duracao || 30,
+    observacao: obs.value.trim()
+  };
+
+  try {
+    confirmar.disabled = true;
+    confirmar.textContent = "Enviando...";
+    await post(payload);
+
+    msg("ok", "<strong>Agendamento enviado!</strong><br>" + esc(payload.cliente) + ", seu horário ficou para " + esc(payload.data.split("-").reverse().join("/")) + " às " + esc(payload.horario) + ".");
+
+    nome.value = "";
+    whatsapp.value = "";
+    obs.value = "";
+
+    setTimeout(carregar, 1200);
+  } catch(e) {
+    msg("erro", "Não consegui enviar.");
+  } finally {
+    liberarBotao(false);
+  }
+}
+
+document.addEventListener("click", function(e) {
+  if (e.target.matches(".hour.free")) {
+    document.querySelectorAll(".hour").forEach(function(b) { b.classList.remove("selected"); });
+    e.target.classList.add("selected");
+    liberarBotao(true);
+  }
+
+  if (e.target.id === "confirmar") agendar();
+});
+
+["data","barbeiro","servico"].forEach(function(id) {
+  document.getElementById(id).addEventListener("change", renderHorarios);
+});
+
+data.value = hoje();
+carregar();
+</script>
+</body>
+</html>
